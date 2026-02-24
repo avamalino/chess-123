@@ -1,5 +1,6 @@
 #include "Application.h"
 #include "imgui/imgui.h"
+#include "classes/Logger.h"
 #include "classes/TicTacToe.h"
 #include "classes/Checkers.h"
 #include "classes/Othello.h"
@@ -31,7 +32,8 @@ namespace ClassGame {
                 ImGui::DockSpaceOverViewport();
 
                 //ImGui::ShowDemoWindow();
-
+                Logger::DrawImGui();
+                Logger::DrawFileConsole();
                 ImGui::Begin("Settings");
 
                 if (gameOver) {

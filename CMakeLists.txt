@@ -53,6 +53,7 @@ add_executable(demo Application.cpp
                           imgui/imgui_tables.cpp
                           imgui/imgui_widgets.cpp
                           imgui/imgui.cpp
+                          classes/Logger.cpp
                           classes/Bit.cpp
                           classes/BitHolder.cpp
                           classes/Game.cpp
@@ -87,8 +88,8 @@ endif()
 add_custom_command(
   TARGET demo POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E copy_directory
-          "${CMAKE_SOURCE_DIR}/resources"
-          "$<TARGET_FILE_DIR:demo>/resources"
+          ${CMAKE_SOURCE_DIR}/resources
+          $<TARGET_FILE_DIR:demo>/resources
   COMMENT "Copying resources to runtime output dir"
 )
 

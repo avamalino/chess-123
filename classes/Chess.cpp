@@ -1,4 +1,5 @@
 #include "Chess.h"
+#include "Logger.h"
 #include <limits>
 #include <cmath>
 
@@ -57,6 +58,9 @@ void Chess::FENtoBoard(const std::string& fen) {
     // 1: piece placement (from white's perspective)
     // NOT PART OF THIS ASSIGNMENT BUT OTHER THINGS THAT CAN BE IN A FEN STRING
     // ARE BELOW
+    for (char ch : fen){
+        Logger::LogInfo("FEN char: %c", ch);
+    }
     // 2: active color (W or B)
     // 3: castling availability (KQkq or -)
     // 4: en passant target square (in algebraic notation, or -)
