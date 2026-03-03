@@ -1,5 +1,6 @@
 #include "Chess.h"
 #include "Logger.h"
+#include "Bitboard.h"
 #include <limits>
 #include <cmath>
 #include <unordered_map>
@@ -67,10 +68,25 @@ void Chess::FENtoBoard(const std::string& fen) {
     struct PieceInfo {
         int player;
         ChessPiece type;
-        string sprite;
+        std::string sprite;
+
+        PieceInfo(int p, ChessPiece t, std::string s) 
+        : player(p), type(t), sprite(s) {}
     };
 
-    unordered_map<char, PieceInfo> dict = {{'r', {1, Rook, "b_rook.png"}},{'n', {1, Knight, "b_knight.png"}},{'b', {1, Bishop, "b_bishop.png"}},{'q', {1, Queen, "b_queen.png"}},{'k', {1, King, "b_king.png"}},{'p', {1, Pawn, "b_pawn.png"}},{'R', {0, Rook, "w_rook.png"}},{'N', {0, Knight, "w_knight.png"}},{'B', {0, Bishop, "w_bishop.png"}},{'Q', {0, Queen, "w_queen.png"}},{'K', {0, King, "w_king.png"}},{'P', {0, Pawn, "w_pawn.png"}}};
+    unordered_map<char, PieceInfo> dict = {
+    {'r', {1, ChessPiece::Rook, "b_rook.png"}},
+    {'n', {1, ChessPiece::Knight, "b_knight.png"}},
+    {'b', {1, ChessPiece::Bishop, "b_bishop.png"}},
+    {'q', {1, ChessPiece::Queen, "b_queen.png"}},
+    {'k', {1, ChessPiece::King, "b_king.png"}},
+    {'p', {1, ChessPiece::Pawn, "b_pawn.png"}},
+    {'R', {0, ChessPiece::Rook, "w_rook.png"}},
+    {'N', {0, ChessPiece::Knight, "w_knight.png"}},
+    {'B', {0, ChessPiece::Bishop, "w_bishop.png"}},
+    {'Q', {0, ChessPiece::Queen, "w_queen.png"}},
+    {'K', {0, ChessPiece::King, "w_king.png"}},
+    {'P', {0, ChessPiece::Pawn, "w_pawn.png"}}};
     
     int row = 0;
     int col = 0;
@@ -174,7 +190,7 @@ void Chess::setStateString(const std::string &s)
         int index = y * 8 + x;
         char playerNumber = s[index] - '0';
         if (playerNumber) {
-            square->setBit(PieceForPlayer(playerNumber - 1, Pawn));
+            square->setBit(PieceForPlayer(playerNumber - 1, ChessPiece::Pawn));
         } else {
             square->setBit(nullptr);
         }

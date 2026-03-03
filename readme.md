@@ -12,5 +12,4 @@ FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
 This will allow you to quickly check that your castling, promotion and en passant code is working.
 
-
 --Adding FEN string compatibility. This is called within setup game. Currently only creates the board with pieces on it. Doesn't record whose turn, the en passant, or castling.
