@@ -2,6 +2,10 @@
 #include "Logger.h"
 #include <limits>
 #include <cmath>
+#include <unordered_map>
+#include <string>
+#include <iostream>
+using namespace std;
 
 Chess::Chess()
 {
@@ -47,7 +51,9 @@ void Chess::setUpBoard()
     _gameOptions.rowY = 8;
 
     _grid->initializeChessSquares(pieceSize, "boardsquare.png");
-    FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    FENtoBoard("b2r3r/k3Rp1p/p2q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K6");
+    //FENtoBoard("rnb1kbnr/pppp1ppp/8/4p3/6q1/8/PPPPPPPP/RNBQKBNR");
+    //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
 
     startGame();
 }
@@ -58,9 +64,40 @@ void Chess::FENtoBoard(const std::string& fen) {
     // 1: piece placement (from white's perspective)
     // NOT PART OF THIS ASSIGNMENT BUT OTHER THINGS THAT CAN BE IN A FEN STRING
     // ARE BELOW
-    for (char ch : fen){
-        Logger::LogInfo("FEN char: %c", ch);
-    }
+    struct PieceInfo {
+        int player;
+        ChessPiece type;
+        string sprite;
+    };
+
+    unordered_map<char, PieceInfo> dict = {{'r', {1, Rook, "b_rook.png"}},{'n', {1, Knight, "b_knight.png"}},{'b', {1, Bishop, "b_bishop.png"}},{'q', {1, Queen, "b_queen.png"}},{'k', {1, King, "b_king.png"}},{'p', {1, Pawn, "b_pawn.png"}},{'R', {0, Rook, "w_rook.png"}},{'N', {0, Knight, "w_knight.png"}},{'B', {0, Bishop, "w_bishop.png"}},{'Q', {0, Queen, "w_queen.png"}},{'K', {0, King, "w_king.png"}},{'P', {0, Pawn, "w_pawn.png"}}};
+    
+    int row = 0;
+    int col = 0;
+    for (char ch: fen){
+        if (ch == ' '){
+            break;
+        }
+        if (ch == '/'){
+            row++;
+            col = 0;
+        } else if (ch >= '1' && ch <= '8') {
+            col += ch - '0';
+        } else {
+            if (col >= 8 || row >= 8){
+                Logger::LogError("Invalid FEN string: too many pieces");
+                return;
+            }
+                PieceInfo info = dict[ch];
+                ChessSquare* square = _grid->getSquare(col, 7 - row);
+                Bit* piece = PieceForPlayer(info.player, info.type);
+                square->dropBitAtPoint(piece, square->getPosition());
+                col++;
+            }
+        }
+    
+    
+    //create a new "FEN" string that only has the piece placement, and then parse that to set up the board
     // 2: active color (W or B)
     // 3: castling availability (KQkq or -)
     // 4: en passant target square (in algebraic notation, or -)

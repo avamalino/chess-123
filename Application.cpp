@@ -85,6 +85,7 @@ namespace ClassGame {
                     game->drawFrame();
                 }
                 ImGui::End();
+
         }
 
         //
