@@ -136,9 +136,76 @@ bool Chess::canBitMoveFrom(Bit &bit, BitHolder &src)
     return false;
 }
 
-bool Chess::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst)
+bool Chess::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst) //source, destination
 {
+    ChessPiece piece = (ChessPiece)(bit.gameTag() & 7);
+    bool isWhite = (bit.gameTag() & 128) == 0;
+
+    ChessSquare* srcSquare = (ChessSquare*)&src;
+    ChessSquare* dstSquare = (ChessSquare*)&dst;
+
+    int sx = srcSquare->getColumn();
+    int sy = srcSquare->getRow();
+    int dx = dstSquare->getColumn();
+    int dy = dstSquare->getRow();
+
+    int xdiff = dx - sx;
+    int ydiff = dy - sy;
+
+    if (piece == Pawn){
+        int direction = isWhite ? 1 : -1;
+        if (xdiff == 0 && ydiff == direction && !dstSquare->bit()){
+            return true;
+        }
+        if (xdiff == 0 && ydiff == 2 * direction){
+            if (isWhite && sy == 1 && !dstSquare->bit()){
+                return true;
+            }
+            if (!isWhite && sy == 6 && !dstSquare->bit()){
+                return true;
+            }
+        }
+        if (abs(xdiff) == 1 && ydiff == direction && dstSquare->bit()){
+            Player* srcOwner = bit.getOwner();
+            Player* dstOwner = dstSquare->bit()->getOwner();
+            if (srcOwner != dstOwner){
+                return true;
+            }
+            
+        }
+        return false;
+    }
     return true;
+}
+
+std::vector<BitMove> Chess::generateAllMoves(){
+    std::vector<BitMove> moves;
+    Player* current = getCurrentPlayer();
+    _grid->forEachSquare([&](ChessSquare* srcSquare, int sx, int sy){
+        Bit* bit = srcSquare->bit();
+
+        if (!bit){
+            return;
+        }
+        if (bit->getOwner() != current){
+            return;
+        }
+        BitHolder& srcHolder = *srcSquare;
+
+        if (!canBitMoveFrom(*bit, srcHolder)){
+            return;
+        }
+        _grid->forEachSquare([&](ChessSquare* dstSquare, int dx, int dy){
+            BitHolder& dstHolder = *dstSquare;
+            if (canBitMoveFromTo(*bit, srcHolder, dstHolder)){
+                int fromIndex = sy * 8 + sx;
+                int toIndex = dy * 8 + dx;
+                ChessPiece piece = (ChessPiece)(bit->gameTag() & 7);
+                moves.emplace_back(fromIndex, toIndex, piece);
+            }
+        });
+    });
+    return moves;
 }
 
 void Chess::stopGame()
