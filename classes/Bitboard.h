@@ -3,18 +3,19 @@
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
+#include "Chess.h"
 #include <iostream>
 
-enum ChessPiece
-{
-    NoPiece,
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King
-};
+//enum ChessPiece
+//{
+//    NoPiece,
+//    Pawn,
+//    Knight,
+//    Bishop,
+//    Rook,
+//    Queen,
+//    King
+//};
 
 class BitboardElement {
   public:

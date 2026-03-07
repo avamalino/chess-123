@@ -42,6 +42,13 @@ Bit* Chess::PieceForPlayer(const int playerNumber, ChessPiece piece)
     bit->setOwner(getPlayerAt(playerNumber));
     bit->setSize(pieceSize, pieceSize);
 
+    int tag = piece;
+    if (playerNumber == 1){
+        tag += 128;
+    }
+
+    bit->setGameTag(tag);
+
     return bit;
 }
 
@@ -52,9 +59,10 @@ void Chess::setUpBoard()
     _gameOptions.rowY = 8;
 
     _grid->initializeChessSquares(pieceSize, "boardsquare.png");
-    FENtoBoard("b2r3r/k3Rp1p/p2q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K6");
+    //FENtoBoard("b2r3r/k3Rp1p/p2q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K6");
     //FENtoBoard("rnb1kbnr/pppp1ppp/8/4p3/6q1/8/PPPPPPPP/RNBQKBNR");
-    //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    Logger::LogInfo(stateString());
 
     startGame();
 }
@@ -65,28 +73,21 @@ void Chess::FENtoBoard(const std::string& fen) {
     // 1: piece placement (from white's perspective)
     // NOT PART OF THIS ASSIGNMENT BUT OTHER THINGS THAT CAN BE IN A FEN STRING
     // ARE BELOW
-    struct PieceInfo {
-        int player;
-        ChessPiece type;
-        std::string sprite;
 
-        PieceInfo(int p, ChessPiece t, std::string s) 
-        : player(p), type(t), sprite(s) {}
+    unordered_map<char, ChessPiece> dict = {
+    {'r', Rook},
+    {'n', Knight},
+    {'b', Bishop},
+    {'q', Queen},
+    {'k', King},
+    {'p', Pawn},
+    {'R', Rook},
+    {'N', Knight},
+    {'B', Bishop},
+    {'Q', Queen},
+    {'K', King},
+    {'P', Pawn}
     };
-
-    unordered_map<char, PieceInfo> dict = {
-    {'r', {1, ChessPiece::Rook, "b_rook.png"}},
-    {'n', {1, ChessPiece::Knight, "b_knight.png"}},
-    {'b', {1, ChessPiece::Bishop, "b_bishop.png"}},
-    {'q', {1, ChessPiece::Queen, "b_queen.png"}},
-    {'k', {1, ChessPiece::King, "b_king.png"}},
-    {'p', {1, ChessPiece::Pawn, "b_pawn.png"}},
-    {'R', {0, ChessPiece::Rook, "w_rook.png"}},
-    {'N', {0, ChessPiece::Knight, "w_knight.png"}},
-    {'B', {0, ChessPiece::Bishop, "w_bishop.png"}},
-    {'Q', {0, ChessPiece::Queen, "w_queen.png"}},
-    {'K', {0, ChessPiece::King, "w_king.png"}},
-    {'P', {0, ChessPiece::Pawn, "w_pawn.png"}}};
     
     int row = 0;
     int col = 0;
@@ -104,9 +105,10 @@ void Chess::FENtoBoard(const std::string& fen) {
                 Logger::LogError("Invalid FEN string: too many pieces");
                 return;
             }
-                PieceInfo info = dict[ch];
+                ChessPiece type = dict.at(ch);
+                int player = isupper(ch) ? 0: 1;
                 ChessSquare* square = _grid->getSquare(col, 7 - row);
-                Bit* piece = PieceForPlayer(info.player, info.type);
+                Bit* piece = PieceForPlayer(player, type);
                 square->dropBitAtPoint(piece, square->getPosition());
                 col++;
             }
