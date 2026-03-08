@@ -144,27 +144,96 @@ bool Chess::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst) //source,
     ChessSquare* srcSquare = (ChessSquare*)&src;
     ChessSquare* dstSquare = (ChessSquare*)&dst;
 
+    //get x and y positions of source and destination squares
     int sx = srcSquare->getColumn();
     int sy = srcSquare->getRow();
     int dx = dstSquare->getColumn();
     int dy = dstSquare->getRow();
 
+    //change in x and y positions
     int xdiff = dx - sx;
     int ydiff = dy - sy;
 
     if (piece == Pawn){
+        return canPawnMoveFromTo(bit, isWhite, srcSquare, dstSquare, xdiff, ydiff, sy);
+    }
+    if (piece == Knight){
+        return canKnightMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+    }
+    if (piece == King){
+        return canKingMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+    }
+    return true;
+}
+
+bool Chess::canKingMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff){
+    Player* srcOwner;
+    Player* dstOwner;
+    //move up down left right
+    if (((abs(xdiff) == 1 && ydiff == 0) || (abs(ydiff) == 1 && xdiff == 0))){
+        if (dstSquare->bit()){
+            srcOwner = bit.getOwner();
+            dstOwner = dstSquare->bit()->getOwner();
+            if (srcOwner != dstOwner){
+                    return true;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+    //move diagonally
+    if (((abs(xdiff) == 1) && (abs(ydiff) == 1))){
+        if (dstSquare->bit()){
+            srcOwner = bit.getOwner();
+            dstOwner = dstSquare->bit()->getOwner();
+            if (srcOwner != dstOwner){
+                    return true;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
+bool Chess::canKnightMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff){
+    //can move 2 up and 1 over or 2 over and 1 up
+    if ((abs(xdiff) == 2 && abs(ydiff) == 1) || (abs(xdiff)== 1 && (abs(ydiff) == 2))){
+        //is square empty?
+        if (!dstSquare->bit()){
+            return true;
+        }
+        //if not empty, is there an enemy to capture?
+        Player* srcOwner = bit.getOwner();
+        Player* dstOwner = dstSquare->bit()->getOwner();
+        if (srcOwner != dstOwner){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Chess::canPawnMoveFromTo(Bit &bit, bool isWhite, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff, int sy){
         int direction = isWhite ? 1 : -1;
+
+        // pawns can move forward one if square is empty.
         if (xdiff == 0 && ydiff == direction && !dstSquare->bit()){
             return true;
         }
+        //can move forward two only if the pawn is still on its starting square and 
+        //two squares in front of it are empty
         if (xdiff == 0 && ydiff == 2 * direction){
             if (isWhite && sy == 1 && !dstSquare->bit()){
                 return true;
             }
+            //same for black but in the opposite direction
             if (!isWhite && sy == 6 && !dstSquare->bit()){
                 return true;
             }
         }
+        //diagonal capture, can capture left or right but only if there is an enemy piece there
         if (abs(xdiff) == 1 && ydiff == direction && dstSquare->bit()){
             Player* srcOwner = bit.getOwner();
             Player* dstOwner = dstSquare->bit()->getOwner();
@@ -175,8 +244,6 @@ bool Chess::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst) //source,
         }
         return false;
     }
-    return true;
-}
 
 std::vector<BitMove> Chess::generateAllMoves(){
     std::vector<BitMove> moves;
