@@ -62,6 +62,24 @@ void Chess::setUpBoard()
     //FENtoBoard("b2r3r/k3Rp1p/p2q1np1/Np1P4/3p1Q2/P4PPB/1PP4P/1K6");
     //FENtoBoard("rnb1kbnr/pppp1ppp/8/4p3/6q1/8/PPPPPPPP/RNBQKBNR");
     FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+
+    std::vector<BitMove> moves = generateAllMoves();
+    int limit = std::min(20, (int)moves.size());
+
+    for (int i = 0; i < limit; i++){
+        BitMove move = moves[i];
+
+        int fromX = move.from % 8;
+        int fromY = move.from / 8;
+
+        int toX = move.to % 8;
+        int toY = move.to / 8;
+
+        Logger::LogInfo("Move " + std::to_string(i) +": (" + std::to_string(fromX) + ", " + std::to_string(fromY) +") -> (" + std::to_string(toX) + ", " + std::to_string(toY) + ")");
+
+        Logger::LogInfo("Piece: " + std::to_string((int)move.piece));
+    }
+
     Logger::LogInfo(stateString());
 
     startGame();
@@ -154,14 +172,97 @@ bool Chess::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst) //source,
     int xdiff = dx - sx;
     int ydiff = dy - sy;
 
-    if (piece == Pawn){
-        return canPawnMoveFromTo(bit, isWhite, srcSquare, dstSquare, xdiff, ydiff, sy);
+    switch (piece){
+        case Pawn:
+            return canPawnMoveFromTo(bit, isWhite, srcSquare, dstSquare, xdiff, ydiff, sy);
+        case Knight:
+            return canKnightMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+        case King:
+            return canKingMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+        case Rook:
+            return canRookMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+        case Queen:
+            return canQueenMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+        case Bishop:
+            return canBishopMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+        default:
+            return false;
     }
-    if (piece == Knight){
-        return canKnightMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+}
+
+bool Chess::canQueenMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff){
+    //can move any number of squares along a rank, file, or diagonal, but cannot leap over other pieces
+    if (xdiff != 0 && ydiff != 0 && abs(xdiff) != abs(ydiff)){
+        return false;
     }
-    if (piece == King){
-        return canKingMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+    //check for pieces in the way
+    int xdir = xdiff == 0 ? 0 : (xdiff > 0 ? 1 : -1);
+    int ydir = ydiff == 0 ? 0 : (ydiff > 0 ? 1 : -1);
+    int steps = max(abs(xdiff), abs(ydiff));
+    for (int i = 1; i < steps; i++){
+        ChessSquare* intermediateSquare = _grid->getSquare(srcSquare->getColumn() + i * xdir, srcSquare->getRow() + i * ydir);
+        if (intermediateSquare->bit()){
+            return false;
+        }
+    }
+    //can capture an enemy piece on the destination square, but cannot capture a friendly piece
+    if (dstSquare->bit()){
+        Player* srcOwner = bit.getOwner();
+        Player* dstOwner = dstSquare->bit()->getOwner();
+        if (srcOwner == dstOwner){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Chess::canBishopMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff){
+    //can move any number of squares diagonally, but cannot leap over other pieces
+    if (abs(xdiff) != abs(ydiff)){
+        return false;
+    }
+    //check for pieces in the way
+    int xdir = xdiff > 0 ? 1 : -1;
+    int ydir = ydiff > 0 ? 1 : -1;
+    for (int i = 1; i < abs(xdiff); i++){
+        ChessSquare* intermediateSquare = _grid->getSquare(srcSquare->getColumn() + i * xdir, srcSquare->getRow() + i * ydir);
+        if (intermediateSquare->bit()){
+            return false;
+        }
+    }
+    //can capture an enemy piece on the destination square, but cannot capture a friendly piece
+    if (dstSquare->bit()){
+        Player* srcOwner = bit.getOwner();
+        Player* dstOwner = dstSquare->bit()->getOwner();
+        if (srcOwner == dstOwner){
+            return false;
+        }
+    }
+    return true;
+}
+
+bool Chess::canRookMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff){
+    //can move any number of squares along a rank or file, but cannot leap over other pieces
+    if (xdiff != 0 && ydiff != 0){
+        return false;
+    }
+    //check for pieces in the way
+    int xdir = xdiff == 0 ? 0 : (xdiff > 0 ? 1 : -1);
+    int ydir = ydiff == 0 ? 0 : (ydiff > 0 ? 1 : -1);
+    int steps = max(abs(xdiff), abs(ydiff));
+    for (int i = 1; i < steps; i++){
+        ChessSquare* intermediateSquare = _grid->getSquare(srcSquare->getColumn() + i * xdir, srcSquare->getRow() + i * ydir);
+        if (intermediateSquare->bit()){
+            return false;
+        }
+    }
+    //can capture an enemy piece on the destination square, but cannot capture a friendly piece
+    if (dstSquare->bit()){
+        Player* srcOwner = bit.getOwner();
+        Player* dstOwner = dstSquare->bit()->getOwner();
+        if (srcOwner == dstOwner){
+            return false;
+        }
     }
     return true;
 }

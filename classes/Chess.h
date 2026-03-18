@@ -39,6 +39,9 @@ public:
     bool canPawnMoveFromTo(Bit &bit, bool isWhite, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff, int sy);
     bool canKnightMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff);
     bool canKingMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff);
+    bool canRookMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff);
+    bool canQueenMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff);
+    bool canBishopMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff);
 
 
     std::string initialStateString() override;
