@@ -186,22 +186,144 @@ bool Chess::canBitMoveFromTo(Bit &bit, BitHolder &src, BitHolder &dst) //source,
     int xdiff = dx - sx;
     int ydiff = dy - sy;
 
+    if (srcSquare == dstSquare){
+        return false;
+    }
+
+    bool basicMoveLegal = false;
     switch (piece){
         case Pawn:
-            return canPawnMoveFromTo(bit, isWhite, srcSquare, dstSquare, xdiff, ydiff, sy);
+            basicMoveLegal = canPawnMoveFromTo(bit, isWhite, srcSquare, dstSquare, xdiff, ydiff, sy);
+            break;
         case Knight:
-            return canKnightMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            basicMoveLegal = canKnightMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            break;
         case King:
-            return canKingMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            basicMoveLegal = canKingMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            break;
         case Rook:
-            return canRookMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            basicMoveLegal = canRookMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            break;
         case Queen:
-            return canQueenMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            basicMoveLegal = canQueenMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            break;
         case Bishop:
-            return canBishopMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            basicMoveLegal = canBishopMoveFromTo(bit, srcSquare, dstSquare, xdiff, ydiff);
+            break;
         default:
             return false;
     }
+
+    if (!basicMoveLegal){
+        return false;
+    }
+
+    Player* movingPlayer = bit.getOwner();
+
+    int fromIndex = sy * 8 + sx;
+    int toIndex = dy * 8 + dx;
+    MoveState state = makeMove(BitMove(fromIndex, toIndex, piece));
+    bool stillInCheck = isKingInCheck(movingPlayer);
+    undoMove(BitMove(fromIndex, toIndex, piece), state);
+
+    return !stillInCheck;
+}
+
+bool Chess::isPathClear(ChessSquare* srcSquare, ChessSquare* dstSquare) const
+{
+    int xdiff = dstSquare->getColumn() - srcSquare->getColumn();
+    int ydiff = dstSquare->getRow() - srcSquare->getRow();
+
+    int xdir = (xdiff == 0) ? 0 : (xdiff > 0 ? 1 : -1);
+    int ydir = (ydiff == 0) ? 0 : (ydiff > 0 ? 1 : -1);
+    int steps = max(abs(xdiff), abs(ydiff));
+
+    for (int i = 1; i < steps; i++){
+        ChessSquare* square = _grid->getSquare(srcSquare->getColumn() + i * xdir, srcSquare->getRow() + i * ydir);
+        if (square && square->bit()){
+            return false;
+        }
+    }
+
+    return true;
+}
+
+bool Chess::canPieceAttackSquare(Bit* bit, ChessSquare* srcSquare, ChessSquare* dstSquare) const
+{
+    if (!bit || !srcSquare || !dstSquare || srcSquare == dstSquare){
+        return false;
+    }
+
+    ChessPiece piece = (ChessPiece)(bit->gameTag() & 7);
+    bool isWhite = (bit->gameTag() & 128) == 0;
+
+    int xdiff = dstSquare->getColumn() - srcSquare->getColumn();
+    int ydiff = dstSquare->getRow() - srcSquare->getRow();
+
+    switch (piece){
+        case Pawn: {
+            int direction = isWhite ? 1 : -1;
+            return (abs(xdiff) == 1 && ydiff == direction);
+        }
+        case Knight:
+            return (abs(xdiff) == 2 && abs(ydiff) == 1) || (abs(xdiff) == 1 && abs(ydiff) == 2);
+        case Bishop:
+            return abs(xdiff) == abs(ydiff) && isPathClear(srcSquare, dstSquare);
+        case Rook:
+            return (xdiff == 0 || ydiff == 0) && isPathClear(srcSquare, dstSquare);
+        case Queen:
+            return ((xdiff == 0 || ydiff == 0) || (abs(xdiff) == abs(ydiff))) && isPathClear(srcSquare, dstSquare);
+        case King:
+            return max(abs(xdiff), abs(ydiff)) == 1;
+        default:
+            return false;
+    }
+}
+
+bool Chess::getKingSquare(Player* player, ChessSquare*& kingSquare) const
+{
+    kingSquare = nullptr;
+    _grid->forEachSquare([&](ChessSquare* square, int x, int y){
+        if (kingSquare || !square->bit()){
+            return;
+        }
+
+        Bit* bit = square->bit();
+        if (bit->getOwner() == player && ((ChessPiece)(bit->gameTag() & 7) == King)){
+            kingSquare = square;
+        }
+    });
+
+    return kingSquare != nullptr;
+}
+
+bool Chess::getCheckingPieces(Player* defendingPlayer, std::vector<ChessSquare*>& checkingPieces) const
+{
+    checkingPieces.clear();
+
+    ChessSquare* kingSquare = nullptr;
+    if (!getKingSquare(defendingPlayer, kingSquare)){
+        return false;
+    }
+
+    _grid->forEachSquare([&](ChessSquare* square, int x, int y){
+        Bit* attacker = square->bit();
+        if (!attacker || attacker->getOwner() == defendingPlayer){
+            return;
+        }
+
+        if (canPieceAttackSquare(attacker, square, kingSquare)){
+            checkingPieces.push_back(square);
+        }
+    });
+
+    return !checkingPieces.empty();
+}
+
+bool Chess::isKingInCheck(Player* player) const
+{
+    std::vector<ChessSquare*> checkers;
+    return getCheckingPieces(player, checkers);
 }
 
 bool Chess::canQueenMoveFromTo(Bit &bit, ChessSquare* srcSquare, ChessSquare* dstSquare, int xdiff, int ydiff){
@@ -482,10 +604,6 @@ int Chess::evaluate() {
     return score;
 }
 
-struct MoveState {
-    Bit* captured;
-};
-
 MoveState Chess::makeMove(const BitMove& move){
     int sx = move.from % 8;
     int sy = move.from / 8;
@@ -496,10 +614,12 @@ MoveState Chess::makeMove(const BitMove& move){
     ChessSquare* dst = _grid->getSquare(dx, dy);
 
     MoveState state;
-    if (dst->bit()){
-        state.captured = dst->bit()->clone();
-    } else {
-        state.captured = nullptr;
+    state.captured = dst->bit();
+    state.movingWasPickedUp = false;
+
+    // Detach captured piece so destination holder does not delete it during simulation.
+    if (state.captured){
+        state.captured->setParent(nullptr);
     }
 
     Bit* moving = src->bit();
@@ -507,6 +627,12 @@ MoveState Chess::makeMove(const BitMove& move){
     if (!moving){
         Logger::LogError("makeMove called with empty src square");
         return state;
+    }
+
+    state.movingWasPickedUp = moving->getPickedUp();
+    if (state.movingWasPickedUp){
+        // Ensure BitHolder::setBit(nullptr) treats moved-away source pointers as stale, not deletable.
+        moving->setPickedUp(false);
     }
 
     dst->setBit(moving);
@@ -566,10 +692,15 @@ void Chess::undoMove(const BitMove& move, MoveState state){
     Bit* moving = dst->bit();
 
     src->setBit(moving);
-    dst->setBit(state.captured);
-
     if (state.captured){
+        state.captured->setParent(nullptr);
         dst->setBit(state.captured);
+    } else {
+        dst->setBit(nullptr);
+    }
+
+    if (moving && state.movingWasPickedUp){
+        moving->setPickedUp(true);
     }
 }
 
@@ -606,6 +737,15 @@ int Chess::negamax(int depth, int alpha, int beta, int color){
 BitMove Chess::findBestMove(int depth){
     std::vector<BitMove> moves = generateAllMoves();
 
+    if (moves.empty()){
+        if (isKingInCheck(getCurrentPlayer())){
+            Logger::LogInfo("No legal moves remaining. Checkmate.");
+        } else {
+            Logger::LogInfo("No legal moves remaining. Stalemate.");
+        }
+        return BitMove();
+    }
+
     BitMove bestMove;
     int bestValue = std::numeric_limits<int>::min();
 
@@ -626,7 +766,7 @@ BitMove Chess::findBestMove(int depth){
 }
 
 void Chess::makeAIMove(){
-    BitMove bestMove = findBestMove(3);
+    BitMove bestMove = findBestMove(5);
 
     if (!applyMoveToBoard(bestMove)){
         return;
@@ -641,6 +781,11 @@ void Chess::updateAI(){
     thinking = true;
 
     BitMove bestMove = findBestMove(3);  //trying 1 first before 3
+
+    if (bestMove.from == bestMove.to){
+        thinking = false;
+        return;
+    }
 
     if (!applyMoveToBoard(bestMove)){
         thinking = false;

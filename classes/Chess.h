@@ -19,7 +19,10 @@ enum ChessPiece
 
 struct BitMove;
 
-struct MoveState;
+struct MoveState {
+    Bit* captured;
+    bool movingWasPickedUp;
+};
 
 class Chess : public Game
 {
@@ -65,6 +68,11 @@ public:
 
 private:
     Bit* PieceForPlayer(const int playerNumber, ChessPiece piece);
+    bool isPathClear(ChessSquare* srcSquare, ChessSquare* dstSquare) const;
+    bool canPieceAttackSquare(Bit* bit, ChessSquare* srcSquare, ChessSquare* dstSquare) const;
+    bool getKingSquare(Player* player, ChessSquare*& kingSquare) const;
+    bool getCheckingPieces(Player* defendingPlayer, std::vector<ChessSquare*>& checkingPieces) const;
+    bool isKingInCheck(Player* player) const;
     Player* ownerAt(int x, int y) const;
     void FENtoBoard(const std::string& fen);
     char pieceNotation(int x, int y) const;
