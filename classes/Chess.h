@@ -19,6 +19,8 @@ enum ChessPiece
 
 struct BitMove;
 
+struct MoveState;
+
 class Chess : public Game
 {
 public:
@@ -32,6 +34,8 @@ public:
     bool actionForEmptyHolder(BitHolder &holder) override;
     std::vector<BitMove> generateAllMoves();
 
+    bool gameHasAI();
+    void updateAI();
     void stopGame() override;
 
     Player *checkForWinner() override;
@@ -47,6 +51,13 @@ public:
     std::string initialStateString() override;
     std::string stateString() override;
     void setStateString(const std::string &s) override;
+    int evaluate();
+    MoveState makeMove(const BitMove& move);
+    void undoMove(const BitMove& move, MoveState state);
+    bool applyMoveToBoard(const BitMove& move);
+    int negamax(int depth, int alpha, int beta, int color);
+    BitMove findBestMove(int depth);
+    void makeAIMove();
     //void FENtoBoard(const std::string& fen);
 
 

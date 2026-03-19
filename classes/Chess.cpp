@@ -32,12 +32,14 @@ char Chess::pieceNotation(int x, int y) const
 
 Bit* Chess::PieceForPlayer(const int playerNumber, ChessPiece piece)
 {
+    if(piece == NoPiece) return nullptr;
+    
     const char* pieces[] = { "pawn.png", "knight.png", "bishop.png", "rook.png", "queen.png", "king.png" };
+    const char* pieceName = pieces[piece - 1];
 
     Bit* bit = new Bit();
     // should possibly be cached from player class?
-    const char* pieceName = pieces[piece - 1];
-    std::string spritePath = std::string("") + (playerNumber == 0 ? "w_" : "b_") + pieceName;
+        std::string spritePath = std::string("") + (playerNumber == 0 ? "w_" : "b_") + pieceName;
     bit->LoadTextureFromFile(spritePath.c_str());
     bit->setOwner(getPlayerAt(playerNumber));
     bit->setSize(pieceSize, pieceSize);
@@ -55,6 +57,8 @@ Bit* Chess::PieceForPlayer(const int playerNumber, ChessPiece piece)
 void Chess::setUpBoard()
 {
     setNumberOfPlayers(2);
+    getPlayerAt(1)->setAIPlayer(true);
+
     _gameOptions.rowX = 8;
     _gameOptions.rowY = 8;
 
@@ -77,7 +81,9 @@ void Chess::setUpBoard()
 
         Logger::LogInfo("Move " + std::to_string(i) +": (" + std::to_string(fromX) + ", " + std::to_string(fromY) +") -> (" + std::to_string(toX) + ", " + std::to_string(toY) + ")");
 
-        Logger::LogInfo("Piece: " + std::to_string((int)move.piece));
+        static const char* pieceNames[] = { "NoPiece", "Pawn", "Knight", "Bishop", "Rook", "Queen", "King" };
+        //Logger::LogInfo("Piece: " + std::to_string((int)move.piece));
+        Logger::LogInfo(std::string("Piece: ") + pieceNames[move.piece]);
     }
 
     Logger::LogInfo(stateString());
@@ -126,6 +132,10 @@ void Chess::FENtoBoard(const std::string& fen) {
                 ChessPiece type = dict.at(ch);
                 int player = isupper(ch) ? 0: 1;
                 ChessSquare* square = _grid->getSquare(col, 7 - row);
+                if (!square){
+                    Logger::LogError("Invalid square while parsing FEN");
+                    continue;
+                }
                 Bit* piece = PieceForPlayer(player, type);
                 square->dropBitAtPoint(piece, square->getPosition());
                 col++;
@@ -138,6 +148,10 @@ void Chess::FENtoBoard(const std::string& fen) {
     // 3: castling availability (KQkq or -)
     // 4: en passant target square (in algebraic notation, or -)
     // 5: halfmove clock (number of halfmoves since the last capture or pawn advance)
+}
+
+bool Chess::gameHasAI(){
+    return true;
 }
 
 bool Chess::actionForEmptyHolder(BitHolder &holder)
@@ -369,6 +383,9 @@ std::vector<BitMove> Chess::generateAllMoves(){
                 int fromIndex = sy * 8 + sx;
                 int toIndex = dy * 8 + dx;
                 ChessPiece piece = (ChessPiece)(bit->gameTag() & 7);
+
+                if (piece == NoPiece) return;
+
                 moves.emplace_back(fromIndex, toIndex, piece);
             }
         });
@@ -432,4 +449,213 @@ void Chess::setStateString(const std::string &s)
             square->setBit(nullptr);
         }
     });
+}
+
+int Chess::evaluate() {
+    int score = 0;
+
+    _grid->forEachSquare([&](ChessSquare* square, int x, int y){
+        Bit* bit = square->bit();
+        if (!bit) return;
+
+        ChessPiece piece = (ChessPiece)(bit->gameTag() & 7);
+        int value = 0;
+
+        if (piece == NoPiece) return;
+
+        switch(piece){
+            case Pawn: value = 100; break;
+            case Knight: value = 320; break;
+            case Bishop: value = 330; break;
+            case Rook: value = 500; break;
+            case Queen: value = 900; break;
+            case King: value = 20000; break;
+            default: break;
+        }
+
+        if ((bit->gameTag() & 128) == 0){
+            score += value;
+        } else {
+            score -= value;
+        }
+    });
+    return score;
+}
+
+struct MoveState {
+    Bit* captured;
+};
+
+MoveState Chess::makeMove(const BitMove& move){
+    int sx = move.from % 8;
+    int sy = move.from / 8;
+    int dx = move.to % 8;
+    int dy = move.to / 8;
+
+    ChessSquare* src = _grid->getSquare(sx, sy);
+    ChessSquare* dst = _grid->getSquare(dx, dy);
+
+    MoveState state;
+    if (dst->bit()){
+        state.captured = dst->bit()->clone();
+    } else {
+        state.captured = nullptr;
+    }
+
+    Bit* moving = src->bit();
+
+    if (!moving){
+        Logger::LogError("makeMove called with empty src square");
+        return state;
+    }
+
+    dst->setBit(moving);
+    src->setBit(nullptr);
+
+    return state;
+}
+
+bool Chess::applyMoveToBoard(const BitMove& move){
+    int sx = move.from % 8;
+    int sy = move.from / 8;
+    int dx = move.to % 8;
+    int dy = move.to / 8;
+
+    ChessSquare* src = _grid->getSquare(sx, sy);
+    ChessSquare* dst = _grid->getSquare(dx, dy);
+
+    if (!src || !dst){
+        Logger::LogError("applyMoveToBoard received an invalid square");
+        return false;
+    }
+
+    Bit* moving = src->bit();
+    if (!moving){
+        Logger::LogError("applyMoveToBoard called with empty src square");
+        return false;
+    }
+
+    if (!canBitMoveFromTo(*moving, *src, *dst)){
+        Logger::LogError("applyMoveToBoard called with illegal move");
+        return false;
+    }
+
+    if (dst->bit()){
+        pieceTaken(dst->bit());
+    }
+
+    if (!dst->dropBitAtPoint(moving, moving->getPosition())){
+        Logger::LogError("applyMoveToBoard failed to drop piece on destination");
+        return false;
+    }
+
+    src->draggedBitTo(moving, dst);
+    bitMovedFromTo(*moving, *src, *dst);
+    return true;
+}
+
+void Chess::undoMove(const BitMove& move, MoveState state){
+    int sx = move.from % 8;
+    int sy = move.from / 8;
+    int dx = move.to % 8;
+    int dy = move.to / 8;
+
+    ChessSquare* src = _grid->getSquare(sx, sy);
+    ChessSquare* dst = _grid->getSquare(dx, dy);
+
+    Bit* moving = dst->bit();
+
+    src->setBit(moving);
+    dst->setBit(state.captured);
+
+    if (state.captured){
+        dst->setBit(state.captured);
+    }
+}
+
+int Chess::negamax(int depth, int alpha, int beta, int color){
+    if (depth == 0){
+        return color * evaluate();
+    }
+
+    std::vector<BitMove> moves = generateAllMoves();
+
+    if (moves.empty()){
+        return color * evaluate();
+    }
+
+    int maxEval = std::numeric_limits<int>::min() / 2;
+
+    for (const auto& move : moves){
+        MoveState state = makeMove(move);
+
+        int eval = -negamax(depth - 1, -beta, -alpha, -color);
+
+        undoMove(move, state);
+
+        maxEval = std::max(maxEval, eval);
+        alpha = std::max(alpha, eval);
+
+        if (alpha >= beta){
+            break;
+        }
+    }
+    return maxEval;
+}
+
+BitMove Chess::findBestMove(int depth){
+    std::vector<BitMove> moves = generateAllMoves();
+
+    BitMove bestMove;
+    int bestValue = std::numeric_limits<int>::min();
+
+    int color = (getCurrentPlayer()->playerNumber() == 0) ? 1 : -1;
+
+    for (const auto& move: moves){
+        MoveState state = makeMove(move);
+
+        int eval = -negamax(depth - 1, std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), -color);
+        undoMove(move, state);
+
+        if (eval > bestValue){
+            bestValue = eval;
+            bestMove = move;
+        }
+    }
+    return bestMove;
+}
+
+void Chess::makeAIMove(){
+    BitMove bestMove = findBestMove(3);
+
+    if (!applyMoveToBoard(bestMove)){
+        return;
+    }
+
+    Logger::LogInfo("AI made a move");
+}
+
+void Chess::updateAI(){
+    static bool thinking = false;
+    if (thinking) return;
+    thinking = true;
+
+    BitMove bestMove = findBestMove(3);  //trying 1 first before 3
+
+    if (!applyMoveToBoard(bestMove)){
+        thinking = false;
+        return;
+    }
+
+    int fromX = bestMove.from % 8;
+    int fromY = bestMove.from / 8;
+    int toX = bestMove.to % 8;
+    int toY = bestMove.to / 8;
+
+    Logger::LogInfo(
+        "AI move: (" + std::to_string(fromX) + "," + std::to_string(fromY) +
+        ") -> (" + std::to_string(toX) + "," + std::to_string(toY) + ")"
+    );
+
+    thinking = false;
 }

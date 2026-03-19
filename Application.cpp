@@ -35,11 +35,12 @@ namespace ClassGame {
                 Logger::DrawImGui();
                 Logger::DrawFileConsole();
                 ImGui::Begin("Settings");
+                
 
                 if (gameOver) {
                     ImGui::Text("Game Over!");
                     ImGui::Text("Winner: %d", gameWinner);
-                    if (ImGui::Button("Reset Game")) {
+                    if (game && ImGui::Button("Reset Game")) {
                         game->stopGame();
                         game->setUpBoard();
                         gameOver = false;
@@ -60,8 +61,10 @@ namespace ClassGame {
                         game->setUpBoard();
                     }
                     if (ImGui::Button("Start Chess")) {
+                        if (game) delete game;
                         game = new Chess();
                         game->setUpBoard();
+
                     }
                 } else {
                     ImGui::Text("Current Player Number: %d", game->getCurrentPlayer()->playerNumber());

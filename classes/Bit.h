@@ -54,6 +54,11 @@ public:
 	void setOpacity(float opacity){};
 	bool getMoving() { return _moving; };
 
+	Bit* clone() const{
+		Bit* copy = new Bit(*this);
+		return copy;
+	};
+
 private:
 	int _restingZ;
 	float _restingTransform;
